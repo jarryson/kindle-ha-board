@@ -2,13 +2,12 @@ import requests, time, threading
 from io import BytesIO
 from urllib.parse import urlparse, parse_qs
 from PIL import Image, ImageDraw
-from .base import BaseBoard
+from .base import BaseBoard, DataPaths
 
 class MusicBoard(BaseBoard):
     def __init__(self, config, layout, d_cfg):
         super().__init__(config, layout)
-        self.cover_dir = self.cache_root / "covers"
-        self.cover_dir.mkdir(exist_ok=True)
+        self.cover_dir = DataPaths.CACHE_COVERS
         
         # 状态追踪：用于判断是否需要下发指令
         self.last_url = None

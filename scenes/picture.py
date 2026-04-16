@@ -1,13 +1,13 @@
 import json, time, zlib
 from pathlib import Path
 from PIL import Image
-from .base import BaseBoard
+from .base import BaseBoard, DataPaths
 
 class PictureBoard(BaseBoard):
     def __init__(self, config, b_cfg, layout):
         super().__init__(config, layout)
-        self.src_dir = Path("data/pictures")
-        self.cache_dir = self.cache_root / "pictures"
+        self.src_dir = DataPaths.DATA_PICTURES
+        self.cache_dir = DataPaths.CACHE_PICTURES
         self.src_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         

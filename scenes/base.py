@@ -2,13 +2,33 @@ import time
 from pathlib import Path
 from PIL import Image, ImageFont
 
+# 🌟 统一路径管理
+class DataPaths:
+    """数据路径常量"""
+    DATA_ROOT = Path("data")
+    DATA_CONFIG = DATA_ROOT / "config.json"
+    DATA_PICTURES = DATA_ROOT / "pictures"
+    
+    CACHE_ROOT = Path("cache")
+    CACHE_COVERS = CACHE_ROOT / "covers"
+    CACHE_PICTURES = CACHE_ROOT / "pictures"
+    
+    @classmethod
+    def ensure_dirs(cls):
+        """确保所有必要的目录存在"""
+        cls.ROOT.mkdir(exist_ok=True)
+        cls.PICTURES.mkdir(parents=True, exist_ok=True)
+        cls.CACHE_ROOT.mkdir(exist_ok=True)
+        cls.CACHE_COVERS.mkdir(parents=True, exist_ok=True)
+        cls.CACHE_PICTURES.mkdir(parents=True, exist_ok=True)
+
 class BaseBoard:
     def __init__(self, config, layout):
         self.cfg = config
         self.debug = config.get("debug", False)
         self.w, self.h = layout['width'], layout['height']
         
-        self.cache_root = Path("cache")
+        self.cache_root = DataPaths.CACHE_ROOT
         self.cache_root.mkdir(exist_ok=True)
         self.ram_cache = {} 
 

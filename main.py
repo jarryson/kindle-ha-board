@@ -8,15 +8,13 @@ from requests.packages.urllib3.util import connection
 # 强制使用 IPv4 解决部分环境下的连接延迟
 connection.allowed_gai_family = lambda: socket.AF_INET
 from coordinator import Coordinator
-
-# 🌟 修改默认配置文件路径到 data/config.json
-CONFIG_PATH = "data/config.json"
+from scenes.base import DataPaths
 
 try:
-    with open(CONFIG_PATH) as f:
+    with open(DataPaths.DATA_CONFIG) as f:
         cfg = json.load(f)
 except FileNotFoundError:
-    print(f"错误: 找不到配置文件 {CONFIG_PATH}")
+    print(f"错误: 找不到配置文件 {DataPaths.DATA_CONFIG}")
     exit(1)
 
 app = Flask(__name__)
