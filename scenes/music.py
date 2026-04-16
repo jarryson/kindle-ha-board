@@ -73,7 +73,7 @@ class MusicBoard(BaseBoard):
         title = attr.get("media_title", "Unknown Title")
         artist = attr.get("media_artist", "Unknown Artist")
         
-        t_size, a_size = int(self.w/11), int(self.w/17)
+        t_size, a_size = int(self.w/9), int(self.w/13)
         f_t, f_a = self.get_font(t_size), self.get_font(a_size)
         
         s_t = self.truncate(draw, title, f_t, self.w - 60)
