@@ -1,7 +1,8 @@
-# --- 第一阶段：构建环境 (Builder) ---
-FROM python:3.11-slim AS builder
+# --- Stage 1: Build environment (Builder) ---
+# Use the platform flag to ensure the correct architecture is used during build
+FROM --platform=$BUILDPLATFORM python:3.11-slim AS builder
 
-# 安装编译 Pillow 所需的开发头文件和编译器
+# Install build dependencies for Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
@@ -12,31 +13,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /install
 COPY requirements.txt .
 
-# 将依赖安装到用户目录下，方便后续拷贝
+# Install dependencies into a local user directory
+# pip will automatically handle architecture-specific compilation
 RUN pip install --user --no-cache-dir -r requirements.txt
 
-# --- 第二阶段：运行环境 (Runner) ---
+# --- Stage 2: Runtime environment (Runner) ---
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# 1. 仅安装运行所需的动态库 (不安装编译器)
+# 1. Install runtime shared libraries only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg62-turbo \
     zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. 从第一阶段拷贝安装好的 Python 包
+# 2. Copy installed Python packages from builder
 COPY --from=builder /root/.local /root/.local
 
-# 3. 拷贝项目代码
+# 3. Copy application code
 COPY . .
 
-# 4. 配置环境变量，确保能找到拷贝过来的库
+# 4. Set environment variables
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 
-# 暴露端口
+# Expose Flask port
 EXPOSE 8135
 
 CMD ["python", "main.py"]
