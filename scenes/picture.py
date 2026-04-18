@@ -66,18 +66,10 @@ class PictureBoard(BaseBoard):
 
         start = time.perf_counter()
         with Image.open(item["path"]) as img:
-            ir, tr = img.width / img.height, self.w / self.h
-            if ir > tr:
-                nw = int(tr * img.height)
-                left = (img.width - nw) // 2
-                img = img.crop((left, 0, left + nw, img.height))
-            else:
-                nh = int(img.width / tr)
-                top = (img.height - nh) // 2
-                img = img.crop((0, top, img.width, top + nh))
+            # 🌟 整合处理：先转灰度再缩放并应用 Atkinson
+            # 缩放至屏幕尺寸 (self.w, self.h)
+            processed = self.apply_kindle_filter(img, (self.w, self.h))
 
-            img = img.resize((self.w, self.h), Image.Resampling.LANCZOS)
-            processed = self.apply_kindle_filter(img)
             processed.save(cpath)
             self._update_cache(ihash, processed)
             self.log(
@@ -87,7 +79,9 @@ class PictureBoard(BaseBoard):
             )
             return processed
 
-    def render(self, attr: Any = None) -> tuple[Image.Image | None, dict[str, Any] | None]:
+    def render(
+        self, attr: Any = None
+    ) -> tuple[Image.Image | None, dict[str, Any] | None]:
         """主渲染逻辑"""
         now = time.time()
         if not self.playlist:

@@ -84,14 +84,22 @@ class Coordinator:
                 else:
                     self.current_mode = self.default_board_name
 
-        # 3. 渲染判断
+        # 3. 数据有效性检查 (仅针对音乐等需要元数据的看板)
+        title = target_attr.get("media_title")
+        # 如果是音乐模式但没有标题，或者是缓冲期的 "None"，则跳过以防止污染缓存
+        if target_board_name == "music":
+            if title is None or str(title).lower() in ["none", "unknown title"]:
+                return None, None
+
+        # 4. 渲染判断
         is_mode_changed = target_board_name != self.last_board_name
 
-        # 简单的元数据变化检测 (根据看板类型可能需要更精细的处理，这里做通用检查)
+        # 构造元数据快照进行比对
         metadata = {
-            k: target_attr.get(k)
-            for k in ["media_title", "media_artist", "entity_picture"]
-            if k in target_attr
+            "title": title,
+            "artist": target_attr.get("media_artist"),
+            "picture": target_attr.get("entity_picture"),
+            "state": target_attr.get("state"),  # 包含状态变化
         }
         is_metadata_changed = metadata != self.last_metadata
 

@@ -54,8 +54,9 @@ class MusicBoard(BaseBoard):
             res = requests.get(full_url, timeout=5)
             if res.ok:
                 with Image.open(BytesIO(res.content)) as raw:
-                    img = raw.resize((self.w, self.w), Image.Resampling.LANCZOS)
-                    processed = self.apply_kindle_filter(img)
+                    # 🌟 整合处理：先转灰度再缩放并应用 Atkinson，效率最高
+                    processed = self.apply_kindle_filter(raw, (self.w, self.w))
+
                     self._update_cache(cid, processed)
                     cpath.parent.mkdir(parents=True, exist_ok=True)
                     processed.save(cpath)
