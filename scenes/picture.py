@@ -87,9 +87,7 @@ class PictureBoard(BaseBoard):
             )
             return processed
 
-    def render(
-        self, ha_cache: Any = None
-    ) -> tuple[Image.Image | None, dict[str, Any] | None]:
+    def render(self, attr: Any = None) -> tuple[Image.Image | None, dict[str, Any] | None]:
         """主渲染逻辑"""
         now = time.time()
         if not self.playlist:

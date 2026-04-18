@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import array
-import gc
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -110,6 +109,13 @@ class BaseBoard:
         del pixels  # 显式释放数组
         self.log("FILTER", "Atkinson 处理完成", (time.perf_counter() - start) * 1000)
         return res
+
+    def render(self, attr: Any = None) -> tuple[Image.Image | None, dict[str, Any] | None]:
+        """
+        [抽象方法] 渲染主界面。子类必须实现此方法。
+        返回: (生成的图像, 发送给 Kindle 的状态指令)
+        """
+        raise NotImplementedError("子类必须实现 render 方法")
 
     def get_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         try:
