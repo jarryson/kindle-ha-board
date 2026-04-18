@@ -1,0 +1,19 @@
+name: Cleanup GHCR Images
+on:
+  schedule:
+    - cron: '0 0 * * 0' # 每周日午夜运行一次
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  delete-old-versions:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Delete old versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'kindle-ha-board' # 替换为你的镜像名
+          package-type: 'container'
+          min-versions-to-keep: 3 # 仅保留最近的 3 个版本
+          delete-only-untagged-versions: 'true' # 如果你只想删掉那些没有标签的“死层”，设为 true
