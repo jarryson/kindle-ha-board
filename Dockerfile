@@ -1,45 +1,42 @@
-# --- Stage 1: Build environment (Builder) ---
-FROM python:3.11-slim AS builder
+# --- Stage 1: Builder ---
+FROM python:3.11-alpine AS builder
 
-# 安装编译所需的开发头文件
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    python3-dev \
-    libjpeg-dev \
-    zlib1g-dev \
-    libfreetype6-dev \
-    liblcms2-dev \
+# 安装编译所需的 build-base 和相关开发库 (Alpine 环境)
+RUN apk add --no-cache \
+    build-base \
+    jpeg-dev \
+    zlib-dev \
+    freetype-dev \
+    lcms2-dev \
+    openjpeg-dev \
+    tiff-dev \
     libwebp-dev \
-    libtiff-dev \
-    libopenjp2-7-dev \
-    && rm -rf /var/lib/apt/lists/*
+    harfbuzz-dev \
+    fribidi-dev
 
 WORKDIR /install
 COPY requirements.txt .
 
-# 安装依赖
+# 安装依赖并排除文档等冗余内容
 RUN pip install --user --no-cache-dir -r requirements.txt
 
-
-# --- Stage 2: Runtime environment (Runner) ---
-FROM python:3.11-slim
+# --- Stage 2: Runner ---
+FROM python:3.11-alpine
 
 WORKDIR /app
 
-# 安装运行时动态库，确保 Pillow 渲染正常
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libjpeg62-turbo \
-    zlib1g \
-    libfreetype6 \
-    liblcms2-2 \
-    libwebp7 \
-    libtiff6 \
-    libopenjp2-7 \
-    libharfbuzz0b \
-    libfribidi0 \
-    && rm -rf /var/lib/apt/lists/*
+# 仅安装运行时所需的动态库
+RUN apk add --no-cache \
+    libjpeg-turbo \
+    libpng \
+    freetype \
+    lcms2 \
+    openjpeg \
+    libwebp \
+    harfbuzz \
+    fribidi
 
-# 从构建阶段拷贝已安装的 Python 包
+# 从 builder 阶段拷贝 python 环境
 COPY --from=builder /root/.local /root/.local
 
 # 配置环境变量
@@ -47,18 +44,15 @@ ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/root/.local/lib/python3.11/site-packages
 ENV PYTHONUNBUFFERED=1
 
-# 验证关键依赖是否安装成功
-RUN python3 -c "from PIL import Image, _imaging; print('Pillow 模块验证通过')"
-RUN python3 -c "import aiohttp; print('aiohttp 模块验证通过')"
-
-# 拷贝项目代码
+# 拷贝代码
 COPY . .
 
-# 创建必要目录
+# 验证
+RUN python3 -c "from PIL import Image; print('Pillow 模块验证通过')"
+
+# 目录预设 (持久化挂载点)
 RUN mkdir -p data/pictures cache/covers cache/pictures
 
-# 默认端口 (需与 config.json 保持一致)
 EXPOSE 8135
 
-# 启动 (aiohttp 纯异步驱动)
 CMD ["python", "main.py"]

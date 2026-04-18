@@ -107,6 +107,9 @@ def process_update(name: str, coord: Coordinator, force: bool = False) -> None:
         )
         log("RENDER", f"[{name}] 更新成功", (time.perf_counter() - start) * 1000)
 
+        # 🌟 内存优化：处理大图后立即建议垃圾回收
+        gc.collect()
+
 
 # --- Aiohttp 路由处理器 ---
 async def handle_status(request: web.Request) -> web.Response:

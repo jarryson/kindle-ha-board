@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import array
+import gc
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,7 +32,7 @@ class DataPaths:
 
 
 class BaseBoard:
-    """看板基类：提供图像处理、字体加载与文本截断等通用功能"""
+    """看板基类：针对低内存环境优化"""
 
     def __init__(
         self,
@@ -43,28 +45,38 @@ class BaseBoard:
         self.debug: bool = global_cfg.get("debug", False)
         self.w: int = layout["width"]
         self.h: int = layout["height"]
-        self.ram_cache: dict[str, Image.Image] = {}
 
-        # 每个卡片独立的显示设置 (只有配置中存在时才下发，否则保持 None)
+        # 内存优化：限制缓存数量，防止无限增长
+        self.ram_cache: dict[str, Image.Image] = {}
+        self.max_cache_size = 5
+
         self.wf = board_cfg.get("waveform")
         self.nm = board_cfg.get("nightmode_type")
 
         DataPaths.ensure_dirs()
 
+    def _update_cache(self, key: str, img: Image.Image):
+        """带容量限制的缓存更新"""
+        if len(self.ram_cache) >= self.max_cache_size:
+            # 弹出最早进入的项
+            self.ram_cache.pop(next(iter(self.ram_cache)))
+        self.ram_cache[key] = img
+
     def log(self, tag: str, msg: str, duration: float | None = None) -> None:
-        """统一日志输出"""
         if not self.debug:
             return
         dur = f" [{duration:.2f}ms]" if duration is not None else ""
         print(f"[{time.strftime('%H:%M:%S')}] [{tag}]{dur} {msg}")
 
     def apply_kindle_filter(self, img: Image.Image) -> Image.Image:
-        """Atkinson 16级灰度抖动处理"""
+        """Atkinson 抖动处理 (内存优化版)"""
         start = time.perf_counter()
         img = img.convert("L")
         width, height = img.size
-        # 使用 bytes 直接迭代获取 0-255 整数
-        pixels = [float(p) for p in img.tobytes()]
+
+        # 🌟 核心优化：使用 array.array 替代 list，节省约 80% 的临时内存占用
+        # 'f' 代表 float32 (4 bytes per element)
+        pixels = array.array("f", img.tobytes())
 
         for y in range(height):
             y_offset = y * width
@@ -91,13 +103,15 @@ class BaseBoard:
                     if y + 2 < height:
                         pixels[idx + 2 * width] += err
 
+        # 将处理后的数据转回图像并释放 array 内存
         res = Image.new("L", (width, height))
         res.putdata([int(p) for p in pixels])
+
+        del pixels  # 显式释放数组
         self.log("FILTER", "Atkinson 处理完成", (time.perf_counter() - start) * 1000)
         return res
 
     def get_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-        """加载配置中的字体，失败则返回默认字体"""
         try:
             return ImageFont.truetype(
                 self.global_cfg["font_path"],
@@ -109,21 +123,15 @@ class BaseBoard:
             return ImageFont.load_default()
 
     def truncate(self, draw: ImageDraw, text: str, font: Any, max_w: int) -> str:
-        """精简文本截断"""
         if not text:
             return ""
-
         for i, char in enumerate(text):
             if char in "(（[【":
                 text = text[:i]
                 break
-
         text = " ".join(text.split())
-
         if not text or draw.textlength(text, font) <= max_w:
             return text
-
         while text and draw.textlength(f"{text}..", font) > max_w:
             text = text[:-1]
-
         return f"{text.strip()}.."

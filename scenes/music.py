@@ -44,7 +44,7 @@ class MusicBoard(BaseBoard):
 
         if cpath.exists():
             img = Image.open(cpath).convert("L")
-            self.ram_cache[cid] = img
+            self._update_cache(cid, img)
             return img
 
         start = time.perf_counter()
@@ -56,7 +56,7 @@ class MusicBoard(BaseBoard):
                 with Image.open(BytesIO(res.content)) as raw:
                     img = raw.resize((self.w, self.w), Image.Resampling.LANCZOS)
                     processed = self.apply_kindle_filter(img)
-                    self.ram_cache[cid] = processed
+                    self._update_cache(cid, processed)
                     cpath.parent.mkdir(parents=True, exist_ok=True)
                     processed.save(cpath)
                     self.log(

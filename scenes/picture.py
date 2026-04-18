@@ -53,10 +53,16 @@ class PictureBoard(BaseBoard):
         )
 
     def _get_image(self, item: dict[str, str]) -> Image.Image:
-        """获取并处理图片"""
-        cpath = self.cache_dir / f"{item['hash']}.png"
+        """获取并处理图片 (带内存缓存)"""
+        ihash = item["hash"]
+        if ihash in self.ram_cache:
+            return self.ram_cache[ihash]
+
+        cpath = self.cache_dir / f"{ihash}.png"
         if cpath.exists():
-            return Image.open(cpath).convert("L")
+            img = Image.open(cpath).convert("L")
+            self._update_cache(ihash, img)
+            return img
 
         start = time.perf_counter()
         with Image.open(item["path"]) as img:
@@ -73,6 +79,7 @@ class PictureBoard(BaseBoard):
             img = img.resize((self.w, self.h), Image.Resampling.LANCZOS)
             processed = self.apply_kindle_filter(img)
             processed.save(cpath)
+            self._update_cache(ihash, processed)
             self.log(
                 "FILTER",
                 f"处理新图片: {item['hash']}",
