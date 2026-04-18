@@ -1,74 +1,129 @@
+from __future__ import annotations
+
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
 from PIL import Image, ImageFont
 
-# 🌟 统一路径管理
+if TYPE_CHECKING:
+    from PIL.ImageDraw import ImageDraw
+
+
+# 🌟 路径配置
 class DataPaths:
-    """数据路径常量"""
+    """数据与缓存路径管理"""
+
     DATA_ROOT = Path("data")
     DATA_CONFIG = DATA_ROOT / "config.json"
     DATA_PICTURES = DATA_ROOT / "pictures"
-    
+
     CACHE_ROOT = Path("cache")
     CACHE_COVERS = CACHE_ROOT / "covers"
     CACHE_PICTURES = CACHE_ROOT / "pictures"
-    
+
     @classmethod
-    def ensure_dirs(cls):
-        """确保所有必要的目录存在"""
-        cls.ROOT.mkdir(exist_ok=True)
-        cls.PICTURES.mkdir(parents=True, exist_ok=True)
-        cls.CACHE_ROOT.mkdir(exist_ok=True)
-        cls.CACHE_COVERS.mkdir(parents=True, exist_ok=True)
-        cls.CACHE_PICTURES.mkdir(parents=True, exist_ok=True)
+    def ensure_dirs(cls) -> None:
+        """初始化必要目录"""
+        for path in [cls.DATA_PICTURES, cls.CACHE_COVERS, cls.CACHE_PICTURES]:
+            path.mkdir(parents=True, exist_ok=True)
+
 
 class BaseBoard:
-    def __init__(self, config, layout):
-        self.cfg = config
-        self.debug = config.get("debug", False)
-        self.w, self.h = layout['width'], layout['height']
-        
-        self.cache_root = DataPaths.CACHE_ROOT
-        self.cache_root.mkdir(exist_ok=True)
-        self.ram_cache = {} 
+    """看板基类：提供图像处理、字体加载与文本截断等通用功能"""
 
-    def log(self, tag, msg, duration=None):
-        """统一计时日志输出"""
-        if not self.debug: return
-        ts = time.strftime('%H:%M:%S')
-        dur_str = f" [{duration:.2f}ms]" if duration is not None else ""
-        print(f"[{ts}] [{tag}]{dur_str} {msg}")
+    def __init__(
+        self,
+        global_cfg: dict[str, Any],
+        board_cfg: dict[str, Any],
+        layout: dict[str, int],
+    ):
+        self.global_cfg = global_cfg
+        self.board_cfg = board_cfg
+        self.debug: bool = global_cfg.get("debug", False)
+        self.w: int = layout["width"]
+        self.h: int = layout["height"]
+        self.ram_cache: dict[str, Image.Image] = {}
 
-    def apply_kindle_filter(self, img):
-        """核心：16级灰度抖动处理 (耗时操作)"""
+        # 每个卡片独立的显示设置 (只有配置中存在时才下发，否则保持 None)
+        self.wf = board_cfg.get("waveform")
+        self.nm = board_cfg.get("nightmode_type")
+
+        DataPaths.ensure_dirs()
+
+    def log(self, tag: str, msg: str, duration: float | None = None) -> None:
+        """统一日志输出"""
+        if not self.debug:
+            return
+        dur = f" [{duration:.2f}ms]" if duration is not None else ""
+        print(f"[{time.strftime('%H:%M:%S')}] [{tag}]{dur} {msg}")
+
+    def apply_kindle_filter(self, img: Image.Image) -> Image.Image:
+        """Atkinson 16级灰度抖动处理"""
         start = time.perf_counter()
-        res = img.convert('L').quantize(colors=16, dither=Image.FLOYDSTEINBERG).convert('L')
-        self.log("FILTER", "16级灰度抖动处理完成", (time.perf_counter() - start) * 1000)
+        img = img.convert("L")
+        width, height = img.size
+        # 使用 bytes 直接迭代获取 0-255 整数
+        pixels = [float(p) for p in img.tobytes()]
+
+        for y in range(height):
+            y_offset = y * width
+            for x in range(width):
+                idx = y_offset + x
+                old_val = pixels[idx]
+                new_val = float(max(0, min(255, int(round(old_val / 17.0) * 17))))
+                pixels[idx] = new_val
+
+                if (err := (old_val - new_val) / 8.0) == 0:
+                    continue
+
+                if x + 1 < width:
+                    pixels[idx + 1] += err
+                    if x + 2 < width:
+                        pixels[idx + 2] += err
+                if y + 1 < height:
+                    row_next = idx + width
+                    if x > 0:
+                        pixels[row_next - 1] += err
+                    pixels[row_next] += err
+                    if x + 1 < width:
+                        pixels[row_next + 1] += err
+                    if y + 2 < height:
+                        pixels[idx + 2 * width] += err
+
+        res = Image.new("L", (width, height))
+        res.putdata([int(p) for p in pixels])
+        self.log("FILTER", "Atkinson 处理完成", (time.perf_counter() - start) * 1000)
         return res
 
-    def get_font(self, size):
+    def get_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        """加载配置中的字体，失败则返回默认字体"""
         try:
-            return ImageFont.truetype(self.cfg['font_path'], size, index=self.cfg['font_index'])
+            return ImageFont.truetype(
+                self.global_cfg["font_path"],
+                size,
+                index=self.global_cfg.get("font_index", 0),
+            )
         except Exception as e:
-            self.log("FONT", f"字体加载失败: {e}")
+            self.log("FONT", f"加载失败: {e}")
             return ImageFont.load_default()
 
-    def truncate(self, draw, text, font, max_w):
-        """文本截断处理，确保最终只有一行且不超出宽度"""
+    def truncate(self, draw: ImageDraw, text: str, font: Any, max_w: int) -> str:
+        """精简文本截断"""
         if not text:
             return ""
-            
-        # 🌟 核心修改：强制移除换行符并合并多余空格，确保输出绝对只有一行
-        text = " ".join(text.replace('\n', ' ').replace('\r', ' ').split())
-        
-        # 如果当前长度已经符合要求，直接返回
-        if draw.textlength(text, font) <= max_w:
+
+        for i, char in enumerate(text):
+            if char in "(（[【":
+                text = text[:i]
+                break
+
+        text = " ".join(text.split())
+
+        if not text or draw.textlength(text, font) <= max_w:
             return text
-            
-        # 否则从末尾开始截断并添加省略号，直到长度符合 max_w
-        t = text
-        # 循环直到截断后的文本加省略号宽度小于等于最大宽度
-        while t and draw.textlength(t + "..", font) > max_w:
-            t = t[:-1]
-            
-        return t.strip() + ".."
+
+        while text and draw.textlength(f"{text}..", font) > max_w:
+            text = text[:-1]
+
+        return f"{text.strip()}.."
