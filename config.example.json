@@ -1,0 +1,28 @@
+{
+  "ha_host": "192.168.1.10:8123",
+  "ha_token": "YOUR_LONG_LIVED_ACCESS_TOKEN",
+  "server_port": 8135,
+  "debug": true,
+  "devices": {
+    "kindle8": {
+      "layout": { "width": 600, "height": 800 },
+      "timeout": 300,
+      "default_board": "picture",
+      "active_boards": ["music", "weather"],
+      "music": {
+        "entity_id": "media_player.spotify_bedroom",
+        "trigger_state": ["playing"],
+        "waveform": "AUTO"
+      },
+      "picture": {
+        "interval": 1800,
+        "waveform": "AUTO"
+      },
+      "weather": {
+        "entity_id": "weather.home",
+        "trigger_state": ["warning"],
+        "waveform": "GC16"
+      }
+    }
+  }
+}
