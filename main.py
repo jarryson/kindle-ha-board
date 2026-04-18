@@ -15,6 +15,8 @@ from urllib3.util import connection
 from coordinator import Coordinator
 from scenes.base import DataPaths
 
+VERSION = "1.3"
+
 # 优化: 强制使用 IPv4
 connection.allowed_gai_family = lambda: socket.AF_INET
 
@@ -223,6 +225,7 @@ def create_app() -> web.Application:
 
 if __name__ == "__main__":
     DataPaths.ensure_dirs()
+    log("SYSTEM", f"Kindle-HABoard v{VERSION} 启动中...")
     init_devices()
     app = create_app()
     web.run_app(app, host="0.0.0.0", port=cfg["server_port"], access_log=None)

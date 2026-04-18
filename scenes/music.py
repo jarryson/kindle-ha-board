@@ -77,7 +77,7 @@ class MusicBoard(BaseBoard):
             cmd["nightmode"] = self.nm
         return cmd
 
-    def render(self, attr: dict[str, Any]) -> tuple[Image.Image, dict[str, Any]]:
+    def render(self, attr: Any = None) -> tuple[Image.Image, dict[str, Any]]:
         """执行主渲染流程"""
         start = time.perf_counter()
         canvas = Image.new("L", (self.w, self.h), 255)
