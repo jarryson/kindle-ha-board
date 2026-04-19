@@ -45,15 +45,17 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
 
-      # 🌟 Step 3: Build and push for both AMD64 and ARM64
+      # 🌟 Step 3: Build and push for AMD64, ARM64 and ARMv7
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # 同时构建 x86 和 ARM64 镜像
-          platforms: linux/amd64,linux/arm64
+          # 同时构建 x86, ARM64 (v8) 和 ARMv7 (32-bit)
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

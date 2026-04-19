@@ -23,8 +23,11 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 # --- Stage 2: Runner ---
 FROM python:3.11-alpine
 
+# 从构建参数接收版本号
+ARG VERSION=1.4.1
+
 LABEL org.opencontainers.image.title="Kindle-HABoard" \
-      org.opencontainers.image.version="1.3" \
+      org.opencontainers.image.version=$VERSION \
       org.opencontainers.image.description="Kindle Home Assistant Dashboard for E-ink optimization"
 
 WORKDIR /app
@@ -47,7 +50,7 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH \
     PYTHONPATH=/root/.local/lib/python3.11/site-packages \
     PYTHONUNBUFFERED=1 \
-    APP_VERSION=1.3
+    APP_VERSION=$VERSION
 
 # 拷贝代码
 COPY . .

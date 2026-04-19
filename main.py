@@ -3,6 +3,7 @@ import gc
 import importlib
 import json
 import logging
+import os
 import socket
 import time
 from io import BytesIO
@@ -15,7 +16,7 @@ from urllib3.util import connection
 from coordinator import Coordinator
 from scenes.base import DataPaths
 
-VERSION = "1.3"
+VERSION = os.getenv("APP_VERSION", "1.4.1")
 
 # 优化: 强制使用 IPv4
 connection.allowed_gai_family = lambda: socket.AF_INET
