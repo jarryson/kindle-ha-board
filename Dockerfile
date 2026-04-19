@@ -41,7 +41,8 @@ RUN apk add --no-cache \
     openjpeg \
     libwebp \
     harfbuzz \
-    fribidi
+    fribidi \
+    tiff
 
 # 从 builder 阶段拷贝 python 环境
 COPY --from=builder /root/.local /root/.local
