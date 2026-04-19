@@ -51,8 +51,8 @@ jobs:
         with:
           context: .
           push: true
-          # 同时构建 x86, ARM64 (v8) 和 ARMv7 (32-bit)
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          # 同时构建 x86 和 ARM64 (v8) 镜像
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |

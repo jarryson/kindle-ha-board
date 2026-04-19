@@ -24,7 +24,7 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 FROM python:3.11-alpine
 
 # 从构建参数接收版本号
-ARG VERSION=1.4.1
+ARG VERSION=1.4.2
 
 LABEL org.opencontainers.image.title="Kindle-HABoard" \
       org.opencontainers.image.version=$VERSION \
@@ -41,8 +41,7 @@ RUN apk add --no-cache \
     openjpeg \
     libwebp \
     harfbuzz \
-    fribidi \
-    tiff
+    fribidi
 
 # 从 builder 阶段拷贝 python 环境
 COPY --from=builder /root/.local /root/.local
