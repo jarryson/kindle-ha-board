@@ -25,6 +25,8 @@ class DataPaths:
 
 
 class BaseBoard:
+    requires_ha = False
+
     def __init__(
         self,
         global_cfg: dict[str, Any],

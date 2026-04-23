@@ -41,12 +41,14 @@ class Coordinator:
         """
         核心调度逻辑：
         1. 按顺序检查 active_boards。
-        2. 如果 active_board 的 trigger_state 满足，则进入该模式。
-        3. 如果所有 active_boards 都不满足且已超时，回到 default 模式。
+        2. 如果 active_board 的任一 entity_id 满足 trigger_state，则进入该模式。
+        3. 如果所有都不满足且已超时，回到 default 模式。
         """
         now = time.time()
         target_board_name = self.default_board_name
-        target_attr = ha_cache
+        target_attr = {}
+        target_state = "unknown"
+        active_eid = None
 
         # 1. 优先级扫描
         for b_name in self.active_board_names:
@@ -55,38 +57,48 @@ class Coordinator:
                 continue
 
             b_cfg = board.board_cfg
-            entity_id = b_cfg.get("entity_id")
-            if not entity_id:
+            eids = b_cfg.get("entity_id")
+            if not eids:
                 continue
 
-            state_data = ha_cache.get(entity_id)
-            if not state_data:
-                continue
+            # 支持字符串或列表
+            if isinstance(eids, str):
+                eids = [eids]
 
-            state = state_data.get("state", "unknown")
             trigger_states = b_cfg.get("trigger_state", [])
 
-            if state in trigger_states:
-                target_board_name = b_name
-                target_attr = state_data.get("attributes", {})
+            found = False
+            for eid in eids:
+                state_data = ha_cache.get(eid)
+                if not state_data:
+                    continue
+
+                state = state_data.get("state", "unknown")
+                if state in trigger_states:
+                    target_board_name = b_name
+                    target_attr = state_data.get("attributes", {})
+                    target_state = state
+                    active_eid = eid
+                    found = True
+                    break
+
+            if found:
                 break
 
         # 2. 状态变化检测 (针对当前选中的看板)
         board = self.boards[target_board_name]
 
-        # 模式切换逻辑：如果目标是默认看板，需检查是否超过观察期
+        # 模式切换逻辑
         if target_board_name == self.default_board_name:
             if self.current_mode != self.default_board_name:
                 if now - self.last_update_time <= self.timeout:
-                    # 仍在观察期内，保持上一个活跃看板
                     target_board_name = self.current_mode
                     board = self.boards[target_board_name]
                 else:
                     self.current_mode = self.default_board_name
 
-        # 3. 数据有效性检查 (仅针对音乐等需要元数据的看板)
+        # 3. 数据有效性检查
         title = target_attr.get("media_title")
-        # 如果是音乐模式但没有标题，或者是缓冲期的 "None"，则跳过以防止污染缓存
         if target_board_name == "music":
             if title is None or str(title).lower() in ["none", "unknown title"]:
                 return None, None
@@ -94,12 +106,13 @@ class Coordinator:
         # 4. 渲染判断
         is_mode_changed = target_board_name != self.last_board_name
 
-        # 构造元数据快照进行比对
+        # 构造元数据快照进行比对 (加入 entity_id 确保切换播放器时刷新)
         metadata = {
+            "eid": active_eid,
             "title": title,
             "artist": target_attr.get("media_artist"),
             "picture": target_attr.get("entity_picture"),
-            "state": target_attr.get("state"),  # 包含状态变化
+            "state": target_state,
         }
         is_metadata_changed = metadata != self.last_metadata
 

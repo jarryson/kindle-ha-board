@@ -21,7 +21,7 @@ class PictureBoard(BaseBoard):
         super().__init__(global_cfg, board_cfg, layout)
         self.src_dir = DataPaths.DATA_PICTURES
         self.cache_dir = DataPaths.CACHE_PICTURES
-
+        self.freeze_hours: list[str] = board_cfg.get("freeze_hours", [])
         self.interval: int = board_cfg.get("interval", 1800)
         self.last_switch: float = 0
         self.last_img_v: int = 0
@@ -29,6 +29,33 @@ class PictureBoard(BaseBoard):
         self.playlist: list[dict[str, str]] = []
 
         self._scan()
+
+    def _is_sleeping(self) -> bool:
+        """检查当前时间是否在休眠时段内"""
+        if not self.sleep_time:
+            return False
+
+        now = time.localtime()
+        now_minutes = now.tm_hour * 60 + now.tm_min
+
+        for period in self.sleep_time:
+            try:
+                start_str, end_str = period.split("-")
+                sh, sm = map(int, start_str.split(":"))
+                eh, em = map(int, end_str.split(":"))
+
+                start_min = sh * 60 + sm
+                end_min = eh * 60 + em
+
+                if start_min <= end_min:
+                    if start_min <= now_minutes < end_min:
+                        return True
+                else:  # 跨零点的情况 (如 22:00-07:00)
+                    if now_minutes >= start_min or now_minutes < end_min:
+                        return True
+            except Exception as e:
+                self.log("ERR", f"解析休眠时段失败 [{period}]: {e}")
+        return False
 
     def _scan(self) -> None:
         """扫描源目录中的图片并生成播放列表"""
@@ -85,6 +112,10 @@ class PictureBoard(BaseBoard):
         """主渲染逻辑"""
         now = time.time()
         if not self.playlist:
+            return None, None
+
+        # 检查是否处于休眠时段
+        if self._is_sleeping():
             return None, None
 
         if self.last_switch != 0 and (now - self.last_switch <= self.interval):

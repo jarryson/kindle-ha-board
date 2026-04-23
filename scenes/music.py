@@ -13,6 +13,7 @@ from .base import BaseBoard, DataPaths
 
 class MusicBoard(BaseBoard):
     """音乐播放器看板：处理封面图抓取、元数据渲染及增量更新指令"""
+    requires_ha = True
 
     def __init__(
         self,

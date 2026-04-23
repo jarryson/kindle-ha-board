@@ -10,12 +10,16 @@
       "default_board": "picture",
       "active_boards": ["music", "weather"],
       "music": {
-        "entity_id": "media_player.spotify_bedroom",
+        "entity_id": [
+          "media_player.spotify_bedroom",
+          "media_player.living_room"
+        ],
         "trigger_state": ["playing"],
         "waveform": "AUTO"
       },
       "picture": {
         "interval": 1800,
+        "sleep_time": ["21:30-07:00"],
         "waveform": "AUTO"
       },
       "weather": {

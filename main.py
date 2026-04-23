@@ -16,7 +16,7 @@ from urllib3.util import connection
 from coordinator import Coordinator
 from scenes.base import DataPaths
 
-VERSION = os.getenv("APP_VERSION", "1.4.1")
+VERSION = os.getenv("APP_VERSION", "1.5.0")
 
 # 优化: 强制使用 IPv4
 connection.allowed_gai_family = lambda: socket.AF_INET
@@ -31,6 +31,9 @@ except FileNotFoundError:
 
 # 禁用 aiohttp 访问日志以节省 IO
 logging.basicConfig(level=logging.ERROR)
+
+# 全局 HA 可用性检查
+HA_ENABLED = bool(cfg.get("ha_host") and cfg.get("ha_token"))
 
 
 class RAM:
@@ -76,10 +79,15 @@ def init_devices() -> None:
                 log("WARN", f"跳过设备 [{name}] 的未知看板: {b_name}")
                 continue
 
+            # 🌟 HA 可选逻辑：如果看板需要 HA 但 HA 未配置，则跳过
+            if b_cls.requires_ha and not HA_ENABLED:
+                log("WARN", f"跳过看板 [{b_name}]: 需要 Home Assistant 但未配置")
+                continue
+
             b_cfg = d_cfg.get(b_name, {})
             boards[b_name] = b_cls(cfg, b_cfg, layout)
 
-        # 2. 检查默认看板是否存在
+        # 2. 检查默认看板是否存在 (可能因为 HA 未配置导致加载失败)
         if default_b_name not in boards:
             log(
                 "ERR", f"设备 [{name}] 的默认看板 {default_b_name} 加载失败，跳过该设备"
@@ -134,6 +142,10 @@ async def handle_image(request: web.Request) -> web.Response:
 
 # --- 后台异步任务 ---
 async def ha_worker(app: web.Application) -> None:
+    if not HA_ENABLED:
+        log("SYSTEM", "HA 未配置，跳过状态监听任务")
+        return
+
     url = f"ws://{cfg['ha_host']}/api/websocket"
     session = aiohttp.ClientSession()
 
