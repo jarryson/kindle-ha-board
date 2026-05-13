@@ -21,7 +21,7 @@ class PictureBoard(BaseBoard):
         super().__init__(global_cfg, board_cfg, layout)
         self.src_dir = DataPaths.DATA_PICTURES
         self.cache_dir = DataPaths.CACHE_PICTURES
-        self.freeze_hours: list[str] = board_cfg.get("freeze_hours", [])
+        self.sleep_time: list[str] = board_cfg.get("sleep_time", [])
         self.interval: int = board_cfg.get("interval", 1800)
         self.last_switch: float = 0
         self.last_img_v: int = 0
